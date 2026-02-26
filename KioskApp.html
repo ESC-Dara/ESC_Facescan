@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>Kiosk สแกนหน้าอัตโนมัติ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Sarabun', sans-serif; background-color: #000; overflow: hidden; user-select: none; margin: 0; padding: 0; }
+    
+    @keyframes popIn { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    .animate-pop { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+  </style>
+</head>
+<body class="h-screen w-screen relative flex flex-col items-center justify-center">
+
+  <video id="liveVideo" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover transform scale-x-[-1] opacity-90"></video>
+
+  <div class="absolute top-0 left-0 w-full bg-[#f97316] text-white flex justify-between items-center px-4 py-2 z-20 shadow-md">
+    <div class="flex items-center text-[16px] font-medium"><div class="w-4 h-4 bg-[#4ade80] rounded-full mr-2 shadow-[0_0_8px_#4ade80]"></div>ออนไลน์</div>
+    <div class="flex items-center text-[16px] font-medium tracking-wide">
+      <div class="w-6 h-6 bg-white rounded-full flex items-center justify-center mr-2 overflow-hidden p-[2px]">
+        <img src="https://upload.wikimedia.org/wikipedia/th/3/3a/Dara_Academy_Logo.png" alt="logo" class="w-full h-full object-contain">
+      </div>
+      โรงเรียนดาราวิทยาลัย
+    </div>
+  </div>
+
+  <div class="absolute top-12 left-0 w-full flex justify-between px-8 py-4 z-10 pointer-events-none">
+    <div class="text-white drop-shadow-[0_4px_6px_rgba(0,0,0,0.8)]">
+      <p class="text-2xl font-medium mb-0 opacity-90">โรงเรียนดาราวิทยาลัย</p>
+      <h1 id="kiosk-clock" class="text-[6rem] font-bold tracking-wider leading-none">00:00:00</h1>
+    </div>
+    <div>
+      <div class="w-28 h-28 flex items-center justify-center drop-shadow-[0_5px_10px_rgba(0,0,0,0.6)]">
+         <img src="https://upload.wikimedia.org/wikipedia/th/3/3a/Dara_Academy_Logo.png" class="w-full h-full object-contain">
+      </div>
+    </div>
+  </div>
+
+  <div class="absolute bottom-0 left-0 w-full bg-[#6b7280] flex justify-between items-center px-8 py-4 z-20 shadow-[0_-4px_10px_rgba(0,0,0,0.5)]">
+    <div id="kiosk-date" class="text-white/90 text-xl font-medium">อัพเดทข้อมูลล่าสุด</div>
+    <div id="ai-status" class="text-[#4ade80] text-xl font-bold tracking-widest flex items-center">
+      <i class="fa-solid fa-robot mr-2"></i> AI พร้อมทำงาน
+    </div>
+  </div>
+  
+  <div id="overlay-ontime" class="hidden absolute inset-0 z-30 flex justify-center items-center bg-black/60 backdrop-blur-md">
+    <div class="bg-[#c5e1a5] w-[70%] max-w-[500px] aspect-[3/4] flex flex-col p-8 relative shadow-2xl animate-pop rounded-sm border-[5px] border-white">
+      <div class="w-[85%] aspect-square bg-[#00bcd4] mx-auto mb-6 flex items-center justify-center overflow-hidden border-[4px] border-white/50 relative shadow-inner">
+        <img id="ontime-img" src="" class="w-full h-full object-cover transform scale-x-[-1]">
+      </div>
+      <div class="text-gray-800 text-3xl font-light space-y-2">
+        <p>Name: <span id="ontime-name" class="font-medium text-black">กำลังโหลด...</span></p>
+        <p>Time: <span id="ontime-time" class="font-medium text-black">00:00:00</span></p>
+      </div>
+      <div class="absolute bottom-10 w-full text-center left-0"><h2 class="text-[5rem] text-white font-bold tracking-widest drop-shadow-md">ตรงเวลา</h2></div>
+    </div>
+  </div>
+
+  <div id="overlay-late" class="hidden absolute inset-0 z-30 flex justify-center items-center bg-black/60 backdrop-blur-md">
+    <div class="bg-[#f4b183] w-[70%] max-w-[500px] aspect-[3/4] flex flex-col p-8 relative shadow-2xl animate-pop rounded-sm border-[5px] border-white">
+      <div class="w-[85%] aspect-square bg-[#00bcd4] mx-auto mb-6 flex items-center justify-center overflow-hidden border-[4px] border-white/50 relative shadow-inner">
+        <img id="late-img" src="" class="w-full h-full object-cover transform scale-x-[-1]">
+      </div>
+      <div class="text-gray-800 text-3xl font-light space-y-2">
+        <p>Name: <span id="late-name" class="font-medium text-black">กำลังโหลด...</span></p>
+        <p>Time: <span id="late-time" class="font-medium text-black">00:00:00</span></p>
+      </div>
+      <div class="absolute bottom-10 w-full text-center left-0"><h2 class="text-[5rem] text-white font-bold tracking-widest drop-shadow-md">สาย</h2></div>
+    </div>
+  </div>
+
+  <div id="loadingModal" class="hidden absolute inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-md transition-opacity">
+    <div class="flex flex-col items-center text-white animate-pop">
+      <i class="fa-solid fa-spinner fa-spin text-[6rem] text-blue-400 mb-6"></i>
+      <h3 id="loadingText" class="text-4xl font-bold tracking-wider">กำลังประมวลผล...</h3>
+    </div>
+  </div>
+
+  <script>
+    // 🚨 1. นำลิงก์ Web App จาก Code.gs มาวางตรงนี้เหมือนเดิมครับ!! 🚨
+    const API_URL = "วาง_ลิงก์_WEB_APP_ของคุณตรงนี้"; 
+
+    let videoStream = null;
+    let isProcessing = false;
+
+    function updateKioskTime() {
+      const now = new Date();
+      document.getElementById('kiosk-clock').innerText = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
+      const thMonth = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+      document.getElementById('kiosk-date').innerText = `อัพเดทข้อมูลล่าสุดวันที่ ${now.getDate().toString().padStart(2, '0')} ${thMonth[now.getMonth()]} ${now.getFullYear()+543} เวลา ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    }
+    setInterval(updateKioskTime, 1000);
+    updateKioskTime();
+
+    async function initKiosk() {
+      const video = document.getElementById('liveVideo');
+      
+      document.getElementById('loadingText').innerText = "กำลังเริ่มต้นระบบ AI...";
+      document.getElementById('loadingModal').classList.remove('hidden');
+      document.getElementById('ai-status').innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> กำลังโหลด AI...';
+      document.getElementById('ai-status').classList.replace('text-[#4ade80]', 'text-yellow-400');
+
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
+        });
+        video.srcObject = videoStream;
+
+        await faceapi.nets.tinyFaceDetector.loadFromUri('https://vladmandic.github.io/face-api/model/');
+        
+        document.getElementById('loadingModal').classList.add('hidden');
+        document.getElementById('ai-status').innerHTML = '<i class="fa-solid fa-circle-check mr-2"></i> AI พร้อมทำงาน';
+        document.getElementById('ai-status').classList.replace('text-yellow-400', 'text-[#4ade80]');
+
+        setInterval(detectFaceAuto, 800);
+
+      } catch (err) {
+        document.getElementById('loadingModal').classList.add('hidden');
+        alert("เปิดกล้องไม่สำเร็จ: กรุณาอนุญาตให้ใช้งานกล้อง");
+        document.getElementById('ai-status').innerText = 'กล้องมีปัญหา';
+        document.getElementById('ai-status').classList.replace('text-[#4ade80]', 'text-red-500');
+      }
+    }
+
+    window.onload = initKiosk;
+
+    async function detectFaceAuto() {
+      if (isProcessing || !videoStream) return; 
+
+      const video = document.getElementById('liveVideo');
+      
+      const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }));
+
+      if (detections.length > 0) {
+        const faceBox = detections[0].box;
+        
+        // ขยับตัวเลขขนาดหน้าให้ใหญ่ขึ้นนิดนึง (กันคนเดินผ่านไกลๆ แล้วสแกนติด)
+        if (faceBox.width > 150 && faceBox.height > 150) {
+          console.log("พบใบหน้า! เริ่มการบันทึก...");
+          autoCaptureAndSend();
+        }
+      }
+    }
+
+    function autoCaptureAndSend() {
+      isProcessing = true; 
+      
+      document.getElementById('loadingText').innerText = "กำลังวิเคราะห์โครงหน้า...";
+      document.getElementById('loadingModal').classList.remove('hidden');
+      
+      const video = document.getElementById('liveVideo');
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth; 
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const base64Image = canvas.toDataURL('image/jpeg', 0.8);
+
+      document.getElementById('ontime-img').src = base64Image;
+      document.getElementById('late-img').src = base64Image;
+
+      fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "scan", image: base64Image })
+      })
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById('loadingModal').classList.add('hidden');
+        if(data.success) {
+           triggerScanResult(data.status === 'ตรงเวลา' ? 'ontime' : 'late', data.name, data.time);
+        } else {
+           alert("เกิดข้อผิดพลาดในการบันทึก: " + data.message);
+           resetScanner();
+        }
+      })
+      .catch(err => {
+        document.getElementById('loadingModal').classList.add('hidden');
+        alert("ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้");
+        resetScanner();
+      });
+    }
+    
+    function triggerScanResult(type, name, timeStr) {
+      if(type === 'ontime') { 
+        document.getElementById('ontime-name').innerText = name;
+        document.getElementById('ontime-time').innerText = timeStr; 
+        document.getElementById('overlay-ontime').classList.remove('hidden'); 
+      } else { 
+        document.getElementById('late-name').innerText = name;
+        document.getElementById('late-time').innerText = timeStr; 
+        document.getElementById('overlay-late').classList.remove('hidden'); 
+      }
+      
+      setTimeout(() => { 
+        document.getElementById('overlay-ontime').classList.add('hidden'); 
+        document.getElementById('overlay-late').classList.add('hidden'); 
+        resetScanner();
+      }, 3500);
+    }
+
+    function resetScanner() {
+      setTimeout(() => { isProcessing = false; }, 1000); 
+    }
+  </script>
+</body>
+</html>
